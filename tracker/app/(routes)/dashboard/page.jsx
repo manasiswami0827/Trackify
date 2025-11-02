@@ -1,0 +1,110 @@
+'use client';
+
+import { db } from '@/utils/dbConfig';
+import { UserButton, useUser } from '@clerk/nextjs';
+import { desc, eq, sql } from 'drizzle-orm';
+import React, { useEffect, useState } from 'react';
+import { Budgets, Expenses } from '@/utils/schema';
+import CardInfo from './_components/CardInfo';
+import dynamic from 'next/dynamic';
+
+const BarChartDashboard = dynamic(() => import('./_components/BarChartDashboard'), { ssr: false });
+import BudgetItem from './budgets/_components/BudgetItem';
+import ExpenseListTable from './expenses/_components/ExpenseListTable';
+
+function Dashboard() {
+  const { user } = useUser();
+  const [budgetList, setBudgetList] = useState([]);
+  const [expensesList,setExpensesList]=useState([]);
+
+  useEffect(() => {
+    if (user) getBudgetList();
+  }, [user]);
+
+  const getBudgetList = async () => {
+    const email = user?.primaryEmailAddress?.emailAddress?.toLowerCase();
+    if (!email) return;
+
+    try {
+      const result = await db
+        .select({
+          id: Budgets.id,
+          name: Budgets.name,
+          amount: Budgets.amount,
+          icon: Budgets.icon,
+          createdBy: Budgets.createdBy,
+          totalSpend: sql`COALESCE(SUM(${Expenses.amount}), 0)`.mapWith(Number),
+          expenseCount: sql`COUNT(${Expenses.id})`.mapWith(Number),
+        })
+        .from(Budgets)
+        .leftJoin(Expenses, eq(Budgets.id, Expenses.budgetId))
+        .where(eq(Budgets.createdBy, email))
+        .groupBy(
+          Budgets.id,
+          Budgets.name,
+          Budgets.amount,
+          Budgets.icon,
+          Budgets.createdBy
+        )
+        .orderBy(desc(Budgets.id));
+
+      const formatted = result.map((budget) => ({
+        ...budget,
+        amount: Number(budget.amount),
+      }));
+
+      setBudgetList(formatted);
+    } catch (error) {
+      console.error('Error fetching budgets:', error);
+    }
+        getAllExpenses();
+
+  };
+
+  const getAllExpenses=async()=>{
+    const result = await db.select({
+      id:Expenses.id,
+      name:Expenses.name,
+      amount:Expenses.amount,
+      createAt:Expenses.createdAt
+    }).from(Budgets)
+    .rightJoin(Expenses,eq(Budgets.id,Expenses.budgetId))
+    .where(eq(Budgets.createdBy,user?.primaryEmailAddress.emailAddress))
+    .orderBy(desc(Expenses.id));
+
+    setExpensesList(result);
+  }
+  return (
+    <div className="p-5">
+      <h2 className="font-bold text-3xl">Hi, {user?.fullName} ✌️</h2>
+      <p className="text-gray-500">
+        Here's what’s happening with your money. Let's manage it better.
+      </p>
+ 
+        <CardInfo budgetList={budgetList} />
+        <div className='grid grid-cols-1 md:grid-cols-3 mt-6 gap-5'>
+          <div className='md:col-span-2'>
+            <BarChartDashboard
+            budgetList={budgetList}
+            />
+          
+            <ExpenseListTable
+            expensesList={expensesList}
+            refreshData={()=>getBudgetList()}
+            />
+          </div>
+         { BudgetItem.length>0 ? <div className='grid gap-5'>
+            <h2 className='font-bold text-lg'>Latest Budget</h2>
+            {budgetList.map((budget,index)=>(
+              <BudgetItem budget={budget} key={index}/>
+            ))}
+          </div>
+          :<></>
+          }
+        </div>
+     
+    </div>
+  );
+}
+
+export default Dashboard;
