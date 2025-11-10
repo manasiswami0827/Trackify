@@ -1,33 +1,31 @@
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import ClientWrapper from "./_component/ClientWrapper";
 import { ClerkProvider } from "@clerk/nextjs";
-import { AppProvider } from "../context/AppContext";
-import { Toaster } from "sonner";
+import { Geist, Geist_Mono } from "next/font/google";
 
 const geistSans = Geist({
-  variable: "--font-geist-sans",
   subsets: ["latin"],
+  variable: "--font-geist-sans",
 });
 
 const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
   subsets: ["latin"],
+  variable: "--font-geist-mono",
 });
 
 export const metadata = {
-  title: "Budget App",
-  description: "Manage your budgets smartly.",
+  title: "Trackify",
+  description: "Smart Budgeting Made Simple",
 };
 
 export default function RootLayout({ children }) {
   return (
     <ClerkProvider>
       <html lang="en">
-        <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-          <AppProvider>
-            <Toaster />
-            {children}
-          </AppProvider>
+        <body
+          className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-purple-100 text-gray-900`}
+        >
+          <ClientWrapper>{children}</ClientWrapper>
         </body>
       </html>
     </ClerkProvider>

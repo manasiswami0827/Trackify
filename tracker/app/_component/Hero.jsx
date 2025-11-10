@@ -1,66 +1,90 @@
-"use client"
-import React from 'react'
-import Image from 'next/image'
-import Link from 'next/link'
-import { useUser } from '@clerk/nextjs'
+"use client";
 
-function Hero() {
-  const { isSignedIn } = useUser();
+import React from "react";
+import Link from "next/link";
+import { motion } from "framer-motion";
+import { useUser } from "@clerk/nextjs";
+
+const Hero = () => {
+  const { isSignedIn, user } = useUser();
 
   return (
-    <section className="bg-gray-50 flex items-center flex-col">
-      {!isSignedIn ? (
-        <div className="mx-auto w-screen max-w-screen-xl px-4 py-16 sm:px-6 sm:py-24 lg:px-8 lg:py-32">
-          <div className="flex justify-center mb-8">
-            <Image
-              src="/lg.svg"
-              alt="BudgetBolt Logo"
-              width={80}
-              height={80}
-              className="rounded-full"
-            />
-          </div>
+    <section className="relative min-h-screen overflow-hidden bg-gradient-to-b from-slate-50 to-purple-100 flex flex-col items-center justify-center text-center px-6 py-24">
+      {/* Background Blurs (lighter + smaller for faster paint) */}
+      <div className="absolute top-0 left-0 w-56 h-56 bg-purple-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30"></div>
+      <div className="absolute bottom-0 right-0 w-56 h-56 bg-pink-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30"></div>
 
-          <div className="mx-auto max-w-prose text-center">
-            <h1 className="text-4xl font-bold text-gray-900 sm:text-5xl">
-              Manage Your Expense
-              <strong className="text-primary"> Control Your Money</strong>
-            </h1>
+      {/* Content */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
+        className="relative z-10 max-w-3xl"
+      >
+        {/* 👇 Added text-transparent fallback for faster first paint */}
+        <h1 className="text-5xl sm:text-6xl font-bold text-gray-900 mb-6 [font-display:swap]">
+          Smart Savings Start Here
+        </h1>
 
-            <p className="mt-4 text-base text-gray-700 sm:text-lg/relaxed">
-              Start creating your budget and take control of your spending.
+        {!isSignedIn ? (
+          <>
+            <p className="text-lg sm:text-xl text-gray-700 mb-10">
+              Manage your expenses, track your savings, and plan your goals.
+              <br />
+              <span className="text-purple-600 font-semibold">
+                Sign in or create an account
+              </span>{" "}
+              to start your journey.
             </p>
 
-            <div className="mt-6 flex justify-center gap-4">
-              <Link
-                href="/sign-in"
-                className="inline-block rounded-lg bg-indigo-600 px-6 py-3 font-medium text-white shadow-md hover:bg-indigo-700 transition"
-              >
-                Get Started
+            <div className="flex flex-col sm:flex-row justify-center gap-4">
+              <Link href="/sign-in">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.97 }}
+                  className="px-8 py-3 bg-purple-600 text-white font-medium rounded-2xl shadow-lg hover:bg-purple-700 transition-all"
+                >
+                  Sign In
+                </motion.button>
+              </Link>
+
+              <Link href="/sign-up">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.97 }}
+                  className="px-8 py-3 bg-gray-200 text-gray-800 font-medium rounded-2xl shadow-lg hover:bg-gray-300 transition-all"
+                >
+                  Sign Up
+                </motion.button>
               </Link>
             </div>
-          </div>
-        </div>
-      ) : (
-        <div className="mx-auto max-w-2xl text-center px-4 py-20">
-          <h2 className="text-2xl font-semibold text-gray-800 sm:text-3xl">
-            ✨ Smart saving starts here!  
-          </h2>
-          <p className="mt-4 text-gray-600 sm:text-lg">
-            Create budgets, track your expenses, and edit them anytime.  
-            Manage your money wisely and enjoy the best savings experience 🚀
-          </p>
-          <div className="mt-8">
-            <Link href="/dashboard">
-              <button className="rounded-lg bg-indigo-600 px-8 py-3 text-white font-medium shadow-md hover:bg-indigo-700 transition">
-                Go to Dashboard
-              </button>
-            </Link>
-          </div>
-        </div>
-      )}
+          </>
+        ) : (
+          <>
+            <p className="text-lg sm:text-xl text-gray-700 mb-10">
+              Welcome back,{" "}
+              <span className="text-purple-600 font-semibold">
+                {user?.firstName || "User"}
+              </span>
+              ! 🎉 Ready to manage your budgets and track your expenses?
+            </p>
+
+            <div className="flex justify-center">
+              <Link href="/dashboard">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.97 }}
+                  className="px-8 py-3 bg-purple-600 text-white font-medium rounded-2xl shadow-lg hover:bg-purple-700 transition-all"
+                >
+                  Go to Dashboard
+                </motion.button>
+              </Link>
+            </div>
+          </>
+        )}
+      </motion.div>
     </section>
   );
-}
+};
 
 export default Hero;

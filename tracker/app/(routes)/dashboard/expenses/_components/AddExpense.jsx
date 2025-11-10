@@ -1,116 +1,144 @@
-// import { Button } from '@/components/ui/button';
-// import { Input } from '@/components/ui/input';
-// import { db } from '@/utils/dbConfig';
-// import { Budgets, Expenses } from '@/utils/schema';
-// import moment from 'moment';
-// import React, { useState } from 'react'
-// import { toast } from 'sonner';
+"use client";
 
-// function AddExpense({budgetId,user,refreshData}) {
-//     const [name, setName] = useState('');
-//     const [amount, setAmount] = useState('');
-
-
-// const addNewExpense=async()=>{
-//   const result = await db.insert(Expenses).values({
-//   name: name,
-//   amount: parseFloat(amount),
-//   budgetId: budgetId,
-//   createdAt:moment().format('DD/MM/YYY') 
-// }).returning({insertedId:Budgets.id});
-
-
-//   setAmount('');
-//   setName('');
-//     if(result)
-//     {
-//        refreshData()
-//         toast("new expenses added")
-//     }
-//     }
-//   return (
-//     <div className='border p-6 rounded-lg ml-1'>
-//       <h2>Add Expense</h2>
-//             <div className='mt-2'>
-//                 <div className="mt-2">
-//                   <h2 className="text-black font-medium my-1">Expense Name</h2>
-//                   <Input
-//                     placeholder="e.g. Bedroom Decor"
-//                     value={name}
-//                     onChange={(e) => setName(e.target.value)}
-//                   />
-//                 </div>
-    
-//                 <div className="mt-2">
-//                   <h2 className="text-black font-medium my-1">Expense Amount</h2>
-//                   <Input
-//                     type="number"
-//                     placeholder="e.g. 1000"
-//                     value={amount}
-//                     onChange={(e) => setAmount(Number(e.target.value))}
-//                   />
-//                 </div>
-//                 <Button disabled={!(name&&amount)}
-//                 onClick={()=>addNewExpense()}
-//                  className="mt-3 w-full">Add New Expense</Button>
-//              </div>
-//     </div>
-//   )
-// }
-
-// export default AddExpense
-
-'use client';
-
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { db } from '@/utils/dbConfig';
-import { Budgets, Expenses } from '@/utils/schema';
-import moment from 'moment';
-import React, { useState } from 'react';
-import { toast } from 'sonner';
+import React, { useState } from "react";
+import { db } from "@/utils/dbConfig";
+import { Budgets, Expenses } from "@/utils/schema";
+import { eq } from "drizzle-orm";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 function AddExpense({ budgetId, user, refreshData }) {
-  const [name, setName] = useState('');
-  const [amount, setAmount] = useState('');
+  const [expenseName, setExpenseName] = useState("");
+  const [amount, setAmount] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const addNewExpense = async () => {
-    const result = await db
-      .insert(Expenses)
-      .values({
-        name: name,
-        amount: parseFloat(amount),
+  const fetchBudgetAndSpent = async (bId) => {
+    const budgets = await db.select().from(Budgets).where(eq(Budgets.id, bId));
+    const budget = budgets?.[0] ?? null;
+
+    const expenses = await db
+      .select()
+      .from(Expenses)
+      .where(eq(Expenses.budgetId, bId));
+
+    const totalSpent = (expenses || []).reduce(
+      (sum, e) => sum + Number(e.amount || 0),
+      0
+    );
+
+    return { budget, totalSpent };
+  };
+
+  const addExpense = async (e) => {
+    e.preventDefault();
+
+    if (!expenseName || !amount) {
+      toast.error("Please fill both name and amount.");
+      return;
+    }
+
+    if (!budgetId) {
+      toast.error("No budget selected.");
+      return;
+    }
+
+    const newAmount = Number(amount);
+    if (isNaN(newAmount) || newAmount <= 0) {
+      toast.error("Enter a valid amount greater than 0.");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const { budget, totalSpent } = await fetchBudgetAndSpent(budgetId);
+
+      if (!budget) {
+        toast.error("Budget not found.");
+        setIsLoading(false);
+        return;
+      }
+
+      const validTotalSpent = Math.max(0, totalSpent);
+      const remaining = Number(budget.amount) - validTotalSpent;
+
+      if (validTotalSpent > Number(budget.amount)) {
+        toast.error(
+          "Invalid budget: total spend already exceeds the budget amount."
+        );
+        setIsLoading(false);
+        return;
+      }
+
+      if (newAmount > remaining) {
+        toast.error(
+          `Insufficient balance 💸 — only ₹${remaining.toLocaleString()} remaining.`
+        );
+        setIsLoading(false);
+        return;
+      }
+
+      await db.insert(Expenses).values({
+        name: expenseName,
+        amount: newAmount,
         budgetId: budgetId,
-        createdAt: moment().format('DD/MM/YYYY'),
-      })
-      .returning({ insertedId: Expenses.id });
+        createdAt: new Date().toISOString(),
+      });
 
-    setAmount('');
-    setName('');
-    if (result) {
-      refreshData();
-      toast('new expenses added');
+      toast.success("Expense added successfully 🎉");
+      setExpenseName("");
+      setAmount("");
+      refreshData && refreshData();
+    } catch (err) {
+      console.error("AddExpense error:", err);
+      toast.error("Something went wrong while adding expense.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="border p-6 rounded-lg ml-1">
-      <h2>Add Expense</h2>
-      <div className="mt-2">
-        <div className="mt-2">
-          <h2 className="text-black font-medium my-1">Expense Name</h2>
-          <Input placeholder="e.g. Bedroom Decor" value={name} onChange={(e) => setName(e.target.value)} />
-        </div>
+    <form
+      onSubmit={addExpense}
+      className="flex flex-col gap-4 bg-white text-gray-900 shadow p-6 rounded-xl"
+    >
+      <h3 className="font-bold text-lg">Add Expense</h3>
 
-        <div className="mt-2">
-          <h2 className="text-black font-medium my-1">Expense Amount</h2>
-          <Input type="number" placeholder="e.g. 1000" value={amount} onChange={(e) => setAmount(e.target.value)} />
-        </div>
-        <Button disabled={!(name && amount)} onClick={() => addNewExpense()} className="mt-3 w-full">
-          Add New Expense
-        </Button>
+      <div>
+        <label className="block text-sm font-medium mb-1" htmlFor="expenseName">
+          Expense Name
+        </label>
+        <Input
+          id="expenseName"
+          type="text"
+          placeholder="e.g. Grocery"
+          value={expenseName}
+          onChange={(e) => setExpenseName(e.target.value)}
+        />
       </div>
-    </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-1" htmlFor="amount">
+          Amount
+        </label>
+        <Input
+          id="amount"
+          type="number"
+          placeholder="e.g. 500"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+        />
+      </div>
+
+      <Button
+        type="submit"
+        disabled={isLoading}
+        className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+      >
+        {isLoading ? "Adding..." : "Add Expense"}
+      </Button>
+    </form>
   );
 }
 
