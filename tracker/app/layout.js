@@ -1,5 +1,5 @@
 import "./globals.css";
-import ClientWrapper from "./_component/ClientWrapper";
+import ClientWrapper from "./_component/Clientwrapper";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Geist, Geist_Mono } from "next/font/google";
 
